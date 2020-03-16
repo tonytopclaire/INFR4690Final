@@ -1,23 +1,3 @@
-print( "                                                    __----~~~~~~~~~~~------___")
-print( "                                   .  .   ~~//====......          __--~ ~~    ")
-print( "                   -.            \_|//     |||\\  ~~~~~~::::... /~            ")
-print( "                ___-==_       _-~o~  \/    |||  \\            _/~~-           ")
-print( "        __---~~~.==~||\=_    -_--~/_-~|-   |\\   \\        _/~                ")
-print( "    _-~~     .=~    |  \\-_    '-~7  /-   /  ||    \      /                   ")
-print( "  .~       .~       |   \\ -_    /  /-   /   ||      \   /                    ")
-print( " /  ____  /         |     \\ ~-_/  /|- _/   .||       \ /                     ")
-print( " |~~    ~~|--~~~~--_ \     ~==-/   | \~--===~~        .\                      ")
-print( "          '         ~-|      /|    |-~\~~       __--~~                        ")
-print( "                      |-~~-_/ |    |   ~\_   _-~            /\                ")
-print( "                           /  \     \__   \/~                \__              ")
-print( "                       _--~ _/ | .-~~____--~-/                  ~~==.         ")
-print( "                      ((->/~   '.|||' -_|    ~~-/ ,              . _||        ")
-print( "                                 -_     ~\      ~~---l__i__i__i--~~_/         ")
-print( "                                 _-~-__   ~)  \--______________--~~           ")
-print( "                               //.-~~~-~_--~- |-------~~~~~~~~                ")
-print( "                                      //.-~~~--\                              ")
-print( "-------------------INFR 4690U FINAL PROJECT --TONY WANG --100474399-----------")
-
 # 03/06/2020:	  Anti-forensic tool ----- File(s) in a usb drive or sd card. 
 # 03/06/2020:	  detect the drive and provide several options. (1) deep format drive (2) delete a file (3) apply self-destrcution file 
 # 03/06/2020:	  Stage 1: fat system. Stage 2: NTFS system. Stage 3: other systems
@@ -31,8 +11,9 @@ import hashlib
 import binascii
 import partitionID
 from ctypes import *
+import ctypes
+import string
 from sys import platform
-
 flag_win = "win32"
 flag_linux = "linux"
 flag_fbsd = "freebsd"
@@ -53,6 +34,28 @@ possible_drives = [
 	"/dev/disk2",
 	"/dev/disk3",
 ]
+
+def logo():
+	print("                                                    __----~~~~~~~~~~~------___")
+	print("                                   .  .   ~~//====......          __--~ ~~    ")
+	print("                   -.            \_|//     |||\\  ~~~~~~::::... /~            ")
+	print("                ___-==_       _-~o~  \/    |||  \\            _/~~-           ")
+	print("        __---~~~.==~||\=_    -_--~/_-~|-   |\\   \\        _/~                ")
+	print("    _-~~     .=~    |  \\-_    '-~7  /-   /  ||    \      /                   ")
+	print("  .~       .~       |   \\ -_    /  /-   /   ||      \   /                    ")
+	print(" /  ____  /         |     \\ ~-_/  /|- _/   .||       \ /                     ")
+	print(" |~~    ~~|--~~~~--_ \     ~==-/   | \~--===~~        .\                      ")
+	print("          '         ~-|      /|    |-~\~~       __--~~                        ")
+	print("                      |-~~-_/ |    |   ~\_   _-~            /\                ")
+	print("                           /  \     \__   \/~                \__              ")
+	print("                       _--~ _/ | .-~~____--~-/                  ~~==.         ")
+	print("                      ((->/~   '.|||' -_|    ~~-/ ,              . _||        ")
+	print("                                 -_     ~\      ~~---l__i__i__i--~~_/         ")
+	print("                                 _-~-__   ~)  \--______________--~~           ")
+	print("                               //.-~~~-~_--~- |-------~~~~~~~~                ")
+	print("                                      //.-~~~--\                              ")
+	print("-------------------INFR 4690U FINAL PROJECT --TONY WANG --100474399-----------")
+	print("------The Anti-forensics tool. Different tasks available are below:-----------")
 
 # The function to read and get the total number of physical drives of the pc 
 def extractMBR(diskpath = "",no = 0, flag = ""):
@@ -100,6 +103,38 @@ def platform():
 			parseInfo(extractMBR("",x,""),x)	
 		except:
 			pass
+
+def get_drives_details():
+	drives = []
+	bitmask = ctypes.windll.kernel32.GetLogicalDrives()
+	for letter in string.ascii_uppercase:
+		if bitmask & 1:
+			drives.append(letter)
+		bitmask >>= 1
+		kernel32 = ctypes.windll.kernel32
+
+	volumeNameBuffer = ctypes.create_unicode_buffer(1024)
+	fileSystemNameBuffer = ctypes.create_unicode_buffer(1024)
+	serial_number = None
+	max_component_length = None
+	file_system_flags = None
+
+	for drive in drives:
+		bitmask = ctypes.windll.kernel32.GetVolumeInformationW(
+		ctypes.c_wchar_p(drive + ":\\"),
+		volumeNameBuffer,
+		ctypes.sizeof(volumeNameBuffer),
+		serial_number,
+		max_component_length,
+		file_system_flags,
+		fileSystemNameBuffer,
+		ctypes.sizeof(fileSystemNameBuffer)
+		)
+		print ("------Logical HardDrive " + drive + ":\\")
+		print ("	  Drive Name:       " + str(volumeNameBuffer.value))
+		print ("	  Drive Type:       " + str(fileSystemNameBuffer.value))
+		print ("----------------------------")
+	return drives
 
 # the function to extract the partition info from the target pysical hard drive
 def saveData(FATS,FATE,no):
@@ -193,22 +228,95 @@ def NTFSAna(rawData,no):
 	print ("The size of each Master File Table entry in bytes is:        " + str(MFTSize))
 
 def myFmtCallback(command, modifier, arg):
-    print(command)
+    print("------Formatting in process...")
     return 1    # TRUE
 
 # Securely format the hard drive under Windows System
 # Support FAT32, NTFS, FAT
 def format_drive(Drive, Format, Title):
-	if (sys.platform.startswith(flag_linux)):
-		print ("")
-	elif (sys.platform.startswith(flag_win)):
-		fm = windll.LoadLibrary('fmifs.dll')
+	if (sys.platform.startswith(flag_win)):
+		print("------Starting Low-Level Formating Process....\n------The Process may take several hours depends on the Hard Drive Volume Size.")
+		fm = ctypes.windll.LoadLibrary('fmifs.dll')
 		FMT_CB_FUNC = WINFUNCTYPE(c_int, c_int, c_int, c_void_p)
 		FMIFS_HARDDISK = 0x0B
 		fm.FormatEx(c_wchar_p(Drive), FMIFS_HARDDISK, c_wchar_p(Format),
-					c_wchar_p(Title), False, c_int(0), FMT_CB_FUNC(myFmtCallback))
+					c_wchar_p(Title), True, c_int(0), FMT_CB_FUNC(myFmtCallback))
+		print ("------Process completed.")
+	else:
+		print ("------The Operating System must be Windows only.")
 
-format_drive('F:\\', 'NTFS', 'USBDrive')
+# perform the formating process
+def win_format():
+	win_format = ["NTFS", "FAT32", "FAT"]
+	drives = []
+	bitmask = ctypes.windll.kernel32.GetLogicalDrives()
+	for letter in string.ascii_uppercase:
+		if bitmask & 1:
+			drives.append(letter)
+		bitmask >>= 1
+	print ("\n\n")
+	print ("-------------------Format HardDrives in Windows-------------------------------")
+	print ("------The Current Operating System should be Windows Only.")
+	print ("	  The Process will Delete Everything Permanetly on the Target Drive.")
+	print ("	  The User Should Pay Attention to each Step.")
+	print ("	  Press R(r) to go back to the previous menu.\n")
+	get_drives_details()
+	while True:
+		driveNo = input("      Select a Drive [Ex. F] to do the low-level format: ")
+		if (driveNo == 'r' or driveNo == 'R'):
+			print("      Go back to the previous menu....")
+			os.system('cls')
+			break
+		elif (driveNo.upper() in drives):
+			print ("------The Target Drvie letter is set to " + driveNo.upper() + ":\\")
+			print ("------Available Drive Format: ")
+			for x in range(len(win_format)):
+				print ("	  Press " + str(x) + " for " + win_format[x])
+			try:
+				driveFormat = int(input("      Select a New Hard Drive Type you want to Implement: "))
+				if (driveFormat == 0 or driveFormat == 1 or driveFormat == 2):
+					print("------The Target Drvie Format is set to " + win_format[driveFormat])
+					driveName = input("      Please Type a New Name for the Drive: ")
+					if (driveName == None):
+						print ("Drive Name cannot be null")
+					else:
+						print("------The Target Drvie Name is set to " + driveName)
+						option = input("      Type 'YES' to Perform the Formatting ")
+						if (option == "YES" or option == "yes"):
+							format_drive(driveNo.upper() + ":\\", win_format[driveFormat], driveName)
+							break
+						else:
+							print ("The Task is Cancelled.")
+							os.system('cls')
+							break
+				else:
+					print("      Please select an available drive format....")
+			except:
+				print("      Something wrong. Please try again....")
+		else:
+			print("      Please select an available drive letter....")
 
-platform()
 
+
+if __name__ == '__main__':
+	tasks = {
+	1: platform,
+	2: win_format,
+}
+	while True:
+		logo()
+		print("\n------Press 1 to Display all Physical & Logical HardDrive(s) Information\n------Press 2 to Format HardDrives in Windows\n------Press 3 to Format HardDrives in Linux\n------Press 0 to exit")
+		try:
+			number = int(input("      Select task number you want to implement: "))
+			if number == 0:
+				print("      Exiting the program....")
+				break
+			elif number not in tasks:
+				print("      Invalid Input. Please try again....")
+				continue
+			else:
+				print()
+				tasks[number]()
+		except:
+			print("      Something wrong. Please try again....")
+			pass
