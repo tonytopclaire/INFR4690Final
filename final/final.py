@@ -5,15 +5,18 @@
 # 03/06/2020:	   Write 00 to offsets related to the search file or hard drive.
 # 03/06/2020:	  Remove any evidence related to the search file had exsit before.
 # 03/07/2020:	  MBR ONLY, so maximum partitions = 4.
+from __future__ import print_function
 import sys
 import os
 import hashlib
 import binascii
 import partitionID
-from ctypes import *
 import ctypes
 import string
+import re
 from sys import platform
+from ctypes import *
+
 flag_win = "win32"
 flag_linux = "linux"
 flag_fbsd = "freebsd"
@@ -32,9 +35,8 @@ possible_drives = [
 	"/dev/sdc",
 	"/dev/disk1", #MacOSX
 	"/dev/disk2",
-	"/dev/disk3",
-]
-
+	"/dev/disk3",]
+# Display a dragon
 def logo():
 	print("                                                    __----~~~~~~~~~~~------___")
 	print("                                   .  .   ~~//====......          __--~ ~~    ")
@@ -56,9 +58,7 @@ def logo():
 	print("                                      //.-~~~--\                              ")
 	print("-------------------INFR 4690U FINAL PROJECT --TONY WANG --100474399-----------")
 	print("------The Anti-forensics tool. Different tasks available are below:-----------")
-
 # The function to read and get the total number of physical drives of the pc 
-
 def extractMBR(no = 0, flag = ""):
 		for drive in possible_drives:
 			try:
@@ -76,8 +76,7 @@ def extractMBR(no = 0, flag = ""):
 				return hex_list
 			except:
 				pass
-
-# The function to load the page
+# The function to load the title menu
 def platform():
 	maxPhysicalDrives = DriveCounter
 
@@ -97,7 +96,6 @@ def platform():
 			parseInfo(extractMBR(x,""),x)	
 		except:
 			pass
-
 # The function to get each logical drives detailed information
 def get_drives_details():
 	drives = []
@@ -130,8 +128,7 @@ def get_drives_details():
 		print ("	  Drive Type:       " + str(fileSystemNameBuffer.value))
 		print ("--------------------------------")
 	return drives
-
-# the function to extract the partition info from the target pysical hard drive
+# The function to extract the partition info from the target hard drive
 def saveData(FATS,FATE,no):
 	try:
 		with open(possible_drives[no], 'rb') as fp:
@@ -144,7 +141,7 @@ def saveData(FATS,FATE,no):
 		return hex_list
 	except:
 		pass
-# The function to check if mbr info is found from the physical hard drive
+# The function to check if MBR data is found from the target hard drive
 def checkSignature(rawData):
 	if (rawData[511] == "aa" and rawData[510] == "55" and rawData[444] == "00" and rawData[445] == "00" or rawData[444] == "5a" or rawData[445] == "5a"):
 		print("MBR found on Sector 0")
@@ -152,8 +149,7 @@ def checkSignature(rawData):
 	else:
 		print("MBR signatures doesn't match (MBR may not present)")
 		return False
-
-# The function to check the mbr type
+# The function to check the MBR type
 def parseMBRInfo(rawData,noOfPartition):
 	try:
 		if (checkSignature(rawData) != True):
@@ -174,7 +170,7 @@ def parseMBRInfo(rawData,noOfPartition):
 			print (" Generic MBR found")
 	except:
 		pass
-
+# The function to extract parse MBR data from the hard drives
 def parseInfo(rawData,noOfPartition):	
 
 	# 1MB = 1024 * 1024 B
@@ -209,8 +205,7 @@ def parseInfo(rawData,noOfPartition):
 					NTFSAna(saveData((partitionStartSector*512),512,noOfPartition),x+1)
 		except:
 			pass
-
-# FAT function to extract partition boot sector from the FAT32 partition
+# The function to extract partition boot sector from the FAT32 partition
 def FAT32Ana(rawData,no): 
 	global sectorSize
 	global clusterSector
@@ -239,7 +234,7 @@ def FAT32Ana(rawData,no):
 		fileDirectoryStartSectorinBytes = (reservedArea + (FATSize * 2)) * 512
 	else:
 		print ("Number of FAT is incorrect.")
-
+# The function to extract partition boot sector from the NTFS partition
 def NTFSAna(rawData,no): 
 	global NTFS_MFT_LocationInt
 	sectorSize = int(rawData[12] + rawData[11], 16)	
@@ -256,11 +251,10 @@ def NTFSAna(rawData,no):
 	print ("Cluster size in bytes of the current NTFS partition:         " + str(clusterSize))
 	print ("The first cluster of the MFT is:                             " + str(MFT_StartCluster))
 	print ("The size of each Master File Table entry in bytes is:        " + str(MFTSize))
-
+# Display formatting process in Windows
 def myFmtCallback(command, modifier, arg):
     print("------Formatting in process...")
     return 1    # TRUE
-
 # Securely format the hard drive under Windows System
 # Support FAT32, NTFS, FAT
 def format_drive(Drive, Format, Title):
@@ -275,64 +269,225 @@ def format_drive(Drive, Format, Title):
 		print ("\n\n")
 	else:
 		print ("------The Operating System must be Windows only.")
-
-# perform the formating process
+# The function to perform the formating process in Windows
 def win_format():
-	win_format = ["NTFS", "FAT32", "FAT"]
-	drives = []
-	bitmask = ctypes.windll.kernel32.GetLogicalDrives()
-	for letter in string.ascii_uppercase:
-		if bitmask & 1:
-			drives.append(letter)
-		bitmask >>= 1
-	print ("\n\n")
-	print ("-------------------Format HardDrives in Windows-------------------------------")
-	print ("------The Current Operating System should be Windows Only.")
-	print ("	  The Process will Delete Everything Permanetly on the Target Drive.")
-	print ("	  The User Should Pay Attention to each Step.")
-	print ("	  Press R(r) to go back to the previous menu.\n")
-	get_drives_details()
-	while True:
-		driveNo = input("      Select a Drive [Ex. F] to do the low-level format: ")
-		if (driveNo == 'r' or driveNo == 'R'):
-			print("      Go back to the previous menu....")
-			os.system('cls')
-			break
-		elif (driveNo.upper() in drives):
-			print ("------The Target Drvie letter is set to: " + driveNo.upper() + ":\\")
-			print ("------Available Drive Format: ")
-			for x in range(len(win_format)):
-				print ("	  Press " + str(x) + " for " + win_format[x])
-			try:
-				driveFormat = int(input("      Select a New Hard Drive Type you want to Implement: "))
-				if (driveFormat == 0 or driveFormat == 1 or driveFormat == 2):
-					print("------The Target Drvie Format is set to: " + win_format[driveFormat])
-					driveName = input("      Please Type a New Name for the Drive: ")
-					if (driveName == None):
-						print ("Drive Name cannot be null")
-					else:
-						print("------The Target Drvie Name is set to: " + driveName)
-						option = input("      Type 'YES' to Perform the Formatting ")
-						if (option == "YES" or option == "yes"):
-							format_drive(driveNo.upper() + ":\\", win_format[driveFormat], driveName)
-							break
+	if (sys.platform.startswith(flag_win)):
+		win_format = ["NTFS", "FAT32", "FAT"]
+		drives = []
+		bitmask = ctypes.windll.kernel32.GetLogicalDrives()
+		for letter in string.ascii_uppercase:
+			if bitmask & 1:
+				drives.append(letter)
+			bitmask >>= 1
+		print ("\n\n")
+		print ("-------------------Format HardDrives in Windows-------------------------------")
+		print ("------The Current Operating System should be Windows Only.")
+		print ("	  The Process will Delete Everything Permanetly on the Target Drive.")
+		print ("	  The User Should Pay Attention to each Step.")
+		print ("	  Press R(r) to go back to the previous menu.\n")
+		get_drives_details()
+		while True:
+			driveNo = input("      Select a Drive [Ex. F] to do the low-level format: ")
+			if (driveNo == 'r' or driveNo == 'R'):
+				print("      Go back to the previous menu....")
+				os.system('cls')
+				break
+			elif (driveNo.upper() in drives):
+				print ("------The Target Drvie letter is set to: " + driveNo.upper() + ":\\")
+				print ("------Available Drive Format: ")
+				for x in range(len(win_format)):
+					print ("	  Press " + str(x) + " for " + win_format[x])
+				try:
+					driveFormat = int(input("      Select a New Hard Drive Type you want to Implement: "))
+					if (driveFormat == 0 or driveFormat == 1 or driveFormat == 2):
+						print("------The Target Drvie Format is set to: " + win_format[driveFormat])
+						driveName = input("      Please Type a New Name for the Drive: ")
+						if (driveName == None):
+							print ("Drive Name cannot be null")
 						else:
-							print ("The Task is Cancelled.")
-							os.system('cls')
-							break
-				else:
-					print("      Please select an available drive format....")
-			except:
-				print("      Something wrong. Please try again....")
-		else:
-			print("      Please select an available drive letter....")
+							print("------The Target Drvie Name is set to: " + driveName)
+							option = input("      Type 'YES' to Perform the Formatting ")
+							if (option == "YES" or option == "yes"):
+								format_drive(driveNo.upper() + ":\\", win_format[driveFormat], driveName)
+								break
+							else:
+								print ("The Task is Cancelled.")
+								os.system('cls')
+								break
+					else:
+						print("      Please select an available drive format....")
+				except:
+					print("      Something wrong. Please try again....")
+			else:
+				print("      Please select an available drive letter....")
+	else:
+		print("This program was designed for Windows. Exiting.")
+		sys.exit()
 
+def is_linux():
+    """Check if system is 'Linux'
+    """
 
+    if 'Linux' not in platform.system():
+        print("This program was designed for GNU/Linux. Exiting.")
+        sys.exit()
 
+def root_user_check():
+    """Check if current UID is 0.
+    """
+
+    if os.getuid() != 0:
+        print("This program requires ROOT privileges. Exiting.")
+        sys.exit()
+
+def list_mounted_devices():
+    """List mounted device(s) / partition(s).
+    """
+
+    print(22 * "-", "DEVICES & PARTITIONS", 22 * "-")
+
+    return os.system('lsblk /dev/sd* --nodeps --output NAME,MODEL,VENDOR,SIZE,TYPE,STATE')
+
+def define_device_to_wipe():
+    """Prompt user to define device or partition to wipe.
+    """
+
+    while True:
+        try:
+            device = input(
+                "Enter letter [number] of device/partition to wipe,"
+                "\ne.g. to wipe '/dev/sdb1' enter 'b1': ")
+
+            if not re.match("^[a-z][0-9]?$", device):
+                raise ValueError()
+            return device
+
+        except ValueError:
+            print("Sorry, that's not a valid device or partition. Try again.")
+
+def append_device_to_wipe():
+    """Append user-defined device/partition to /dev/sd.
+    """
+
+    letter = define_device_to_wipe()
+
+    return '/dev/sd' + letter
+
+def number_of_wipes():
+    """Prompt user for number of wipes to perform.
+    """
+
+    while True:
+        try:
+            wipes = int(input("How many times do you want to wipe the device or partition?: "))
+
+            if wipes <= 0:
+                raise ValueError()
+            return wipes
+
+        except ValueError:
+            print("Sorry, that's not a valid number. Try again: ")
+
+def confirm_wipe():
+    """Prompt user to confirm disk erasure.
+    """
+
+    print("WARNING!!! WRITING CHANGES TO DISK WILL RESULT IN IRRECOVERABLE DATA LOSS.")
+
+    while True:
+        try:
+            reply = input("Do you want to proceed? (Yes/No): ").lower().strip()
+
+            if reply == 'yes':
+                return True
+            if reply == 'no':
+                print("Exiting pyWype.")
+                sys.exit()
+
+        except ValueError:
+            print("Sorry, that's not a valid entry. Try again: ")
+
+def write_zeros_to_device():
+    """Write zeros to device/partition.
+    """
+
+    append = append_device_to_wipe()
+    num = number_of_wipes()
+    confirm_wipe()
+
+    for i in range(num):
+        print("Processing pass count {} of {} ... ".format(i + 1, num))
+        os.system(('dd if=/dev/zero |pv --progress --time --rate --bytes|'
+                   'dd of={} bs=1024'.format(append)))
+
+def write_random_to_device():
+    """Write random zeros and ones to device/partition.
+    """
+
+    append = append_device_to_wipe()
+    num = number_of_wipes()
+    confirm_wipe()
+
+    for i in range(num):
+        print("Processing pass count {} of {} ... ".format(i + 1, num))
+        os.system(('dd if=/dev/urandom |pv --progress --time --rate --bytes|'
+                   'dd of={} bs=1024'.format(append)))
+
+def menu():
+    """Menu prompt for use to select program option.
+    """
+
+    list_mounted_devices()
+
+    while True:
+        try:
+            print(30 * "-", "MENU", 30 * "-")
+            print("1. Overwrite device or partition with 0's \n(faster, less secure).")
+            print("2. Overwrite device or partition with random 0\'s & 1\'s"
+                  "\n(slower, more secure).")
+            print("3. Quit.")
+
+            choice = input("Select an option (1, 2 or 3): ")
+
+            if choice not in ('1', '2', '3'):
+                raise ValueError()
+            return choice
+
+        except ValueError:
+            print("Sorry, that's not a valid number. Try again: ")
+
+def interactive_mode():
+    """Display menu-driven options and run function based on selection.
+    """
+
+    while True:
+        choice = menu()
+
+        if choice == '3':
+            sys.exit()
+        elif choice == '1':
+            write_zeros_to_device()
+        elif choice == '2':
+            write_random_to_device()
+
+# The function to perform the formating process in Linux
+def linux_format():
+	try:
+		input = raw_input
+	except NameError:
+		pass
+	print(28 * '-', " pyWype ", 28 * '-')
+	print("PYTHON DISK & PARTITION WIPING UTILITY FOR GNU/LINUX."
+		"\nTHIS UTILITY WILL IRRECOVERABLY WIPE DATA FROM DRIVE.\nPROCEED WITH CAUTION.")
+	is_linux()
+	root_user_check()
+	interactive_mode()
+# Display the main menu
 if __name__ == '__main__':
 	tasks = {
 	1: platform,
 	2: win_format,
+	3: linux_format,
 }
 	while True:
 		logo()
