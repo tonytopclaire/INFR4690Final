@@ -63,7 +63,10 @@ def extractMBR(no = 0, flag = ""):
 		for drive in possible_drives:
 			try:
 				with open(possible_drives[no], 'rb') as fp:
-					hex_list = ["{:02x}".format(c) for c in fp.read(512)]
+					if (sys.platform.startswith(flag_win)):
+						hex_list = ["{:02x}".format(c) for c in fp.read(512)]
+					elif sys.platform.startswith(flag_linux):
+						hex_list = ["{:02x}".format(ord(c)) for c in fp.read(512)]
 				if (flag == "load"):
 					global DriveCounter
 					DriveCounter = DriveCounter + 1
@@ -133,7 +136,10 @@ def saveData(FATS,FATE,no):
 	try:
 		with open(possible_drives[no], 'rb') as fp:
 			fp.seek(FATS)
-			hex_list = ["{:02x}".format(c) for c in fp.read(FATE)]
+			if (sys.platform.startswith(flag_win)):
+				hex_list = ["{:02x}".format(c) for c in fp.read(FATE)]
+			elif sys.platform.startswith(flag_linux):
+				hex_list = ["{:02x}".format(ord(c)) for c in fp.read(FATE)]
 		fp.close()
 		return hex_list
 	except:
@@ -153,7 +159,7 @@ def parseMBRInfo(rawData,noOfPartition):
 		if (checkSignature(rawData) != True):
 			exit
 		print ("Disk Signature:" +rawData[443] + rawData[442] + rawData[441] +rawData[440])
-		print("Possible MBR scheme", end=':')
+		print("Possible MBR scheme", end == ':')
 		if (rawData[218] == "00" and rawData[219] == "00"):
 			print(" Modern standard MBR found.")
 		elif (rawData[428] == "78" and rawData[429] == "56"):
@@ -293,19 +299,19 @@ def win_format():
 			os.system('cls')
 			break
 		elif (driveNo.upper() in drives):
-			print ("------The Target Drvie letter is set to " + driveNo.upper() + ":\\")
+			print ("------The Target Drvie letter is set to: " + driveNo.upper() + ":\\")
 			print ("------Available Drive Format: ")
 			for x in range(len(win_format)):
 				print ("	  Press " + str(x) + " for " + win_format[x])
 			try:
 				driveFormat = int(input("      Select a New Hard Drive Type you want to Implement: "))
 				if (driveFormat == 0 or driveFormat == 1 or driveFormat == 2):
-					print("------The Target Drvie Format is set to " + win_format[driveFormat])
+					print("------The Target Drvie Format is set to: " + win_format[driveFormat])
 					driveName = input("      Please Type a New Name for the Drive: ")
 					if (driveName == None):
 						print ("Drive Name cannot be null")
 					else:
-						print("------The Target Drvie Name is set to " + driveName)
+						print("------The Target Drvie Name is set to: " + driveName)
 						option = input("      Type 'YES' to Perform the Formatting ")
 						if (option == "YES" or option == "yes"):
 							format_drive(driveNo.upper() + ":\\", win_format[driveFormat], driveName)
