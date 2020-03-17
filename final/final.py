@@ -58,17 +58,8 @@ def logo():
 	print("------The Anti-forensics tool. Different tasks available are below:-----------")
 
 # The function to read and get the total number of physical drives of the pc 
-def extractMBR(diskpath = "",no = 0, flag = ""):
-	if (diskpath != ""):
-		try:
-			with open(diskpath, 'rb') as fp:
-				hex_list = ["{:02x}".format(c) for c in fp.read(512)]
-			fp.close();
-			return hex_list
-		except:
-			print ("Input file/device not found")
-			print ("Request terminated")
-	else:
+
+def extractMBR(no = 0, flag = ""):
 		for drive in possible_drives:
 			try:
 				with open(possible_drives[no], 'rb') as fp:
@@ -99,11 +90,12 @@ def platform():
 
 	for x in range(noOfDriveSize):
 		try:
-			extractMBR("",x,"load")
-			parseInfo(extractMBR("",x,""),x)	
+			parseMBRInfo(extractMBR(x,"load"),x)
+			parseInfo(extractMBR(x,""),x)	
 		except:
 			pass
 
+# The function to get each logical drives detailed information
 def get_drives_details():
 	drives = []
 	bitmask = ctypes.windll.kernel32.GetLogicalDrives()
@@ -133,7 +125,7 @@ def get_drives_details():
 		print ("------Logical HardDrive " + drive + ":\\")
 		print ("	  Drive Name:       " + str(volumeNameBuffer.value))
 		print ("	  Drive Type:       " + str(fileSystemNameBuffer.value))
-		print ("----------------------------")
+		print ("--------------------------------")
 	return drives
 
 # the function to extract the partition info from the target pysical hard drive
@@ -146,9 +138,39 @@ def saveData(FATS,FATE,no):
 		return hex_list
 	except:
 		pass
+# The function to check if mbr info is found from the physical hard drive
+def checkSignature(rawData):
+	if (rawData[511] == "aa" and rawData[510] == "55" and rawData[444] == "00" and rawData[445] == "00" or rawData[444] == "5a" or rawData[445] == "5a"):
+		print("MBR found on Sector 0")
+		return True
+	else:
+		print("MBR signatures doesn't match (MBR may not present)")
+		return False
 
-# The function to extract mbr info from the hard drive
+# The function to check the mbr type
+def parseMBRInfo(rawData,noOfPartition):
+	try:
+		if (checkSignature(rawData) != True):
+			exit
+		print ("Disk Signature:" +rawData[443] + rawData[442] + rawData[441] +rawData[440])
+		print("Possible MBR scheme", end=':')
+		if (rawData[218] == "00" and rawData[219] == "00"):
+			print(" Modern standard MBR found.")
+		elif (rawData[428] == "78" and rawData[429] == "56"):
+			print (" Advanced Active Partitions (AAP) MBR found")
+		elif (rawData[0] == "eb" and rawData[2] == "4e" and rawData[3] == "45" and rawData[4] == "57" and rawData[6] == "4c" and raw_input[7] == "44" and rawData[8] == "52"):
+			print (" NEWLDR MBR found.")
+		elif (rawData[380] == "5a" and rawData[381] == "a5"):
+			print (" MS-DOS MBR found.")
+		elif (rawData[252] == "aa" and rawData[253] == "55"):
+			print (" Disk Manager MBR")
+		else:
+			print (" Generic MBR found")
+	except:
+		pass
+
 def parseInfo(rawData,noOfPartition):	
+
 	# 1MB = 1024 * 1024 B
 	CalFormula = 1048576
 	# MBR
@@ -157,7 +179,8 @@ def parseInfo(rawData,noOfPartition):
 	partion = [[446,447,448,449,450,451,452,453,454,455,456,457,458,459,460,461],
 			   [462,463,464,465,466,467,468,469,470,471,472,473,474,475,476,477],
 			   [478,479,480,481,482,483,484,485,486,487,488,489,490,491,492,493],
-			   [494,495,496,497,498,499,500,501,502,503,504,505,506,507,508,509],]
+			   [494,495,496,497,498,499,500,501,502,503,504,505,506,507,508,509],
+			   [444,445,510,511,512]]
 	for x in range(maxPartitionMBR):
 		try:
 			if ((rawData[partion[x][0]] == "00" or rawData[partion[x][0]] == "80") and (rawData[partion[x][1]] != "00" 
@@ -204,6 +227,7 @@ def FAT32Ana(rawData,no):
 		print ("FAT " + str(x) + " Start sector: " + str(reservedArea + (x * FATSize)) + " End sector: " + str(reservedArea + ((x+1) * FATSize)-1))
 	print ("Cluster size in bytes of the current FAT partition is:       " + str(clusterSize))
 	print ("The smallest cluster number of the current FAT partition is: " + str(minNoCluster))
+	print ("\n\n")
 	if (noOfFAT == 2):
 		fileDirectoryStartSector = (reservedArea + (FATSize * 2))
 		fileDirectoryStartSectorinBytes = (reservedArea + (FATSize * 2)) * 512
@@ -242,6 +266,7 @@ def format_drive(Drive, Format, Title):
 		fm.FormatEx(c_wchar_p(Drive), FMIFS_HARDDISK, c_wchar_p(Format),
 					c_wchar_p(Title), True, c_int(0), FMT_CB_FUNC(myFmtCallback))
 		print ("------Process completed.")
+		print ("\n\n")
 	else:
 		print ("------The Operating System must be Windows only.")
 
