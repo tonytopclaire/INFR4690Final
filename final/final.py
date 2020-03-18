@@ -324,164 +324,115 @@ def win_format():
 		print("This program was designed for Windows. Exiting.")
 		sys.exit()
 
-def is_linux():
-    """Check if system is 'Linux'
-    """
-
-    if 'Linux' not in platform.system():
-        print("This program was designed for GNU/Linux. Exiting.")
-        sys.exit()
-
-def root_user_check():
-    """Check if current UID is 0.
-    """
-
-    if os.getuid() != 0:
-        print("This program requires ROOT privileges. Exiting.")
-        sys.exit()
-
+## List mounted device(s) / partition(s).
 def list_mounted_devices():
-    """List mounted device(s) / partition(s).
-    """
+	print(18 * "-", "DEVICES & PARTITIONS", 41 * "-")
+	return os.system('lsblk /dev/sd* --nodeps --output NAME,MODEL,VENDOR,SIZE,TYPE,STATE')
 
-    print(22 * "-", "DEVICES & PARTITIONS", 22 * "-")
-
-    return os.system('lsblk /dev/sd* --nodeps --output NAME,MODEL,VENDOR,SIZE,TYPE,STATE')
-
+# Prompt user to define device or partition to wipe
 def define_device_to_wipe():
-    """Prompt user to define device or partition to wipe.
-    """
+	while True:
+		try:
+			device = input(
+				"Enter letter [number] of device/partition to wipe,"
+ 				"\ne.g. to wipe '/dev/sdb1' enter 'b1': ")
+			if not re.match("^[a-z][0-9]?$", device):
+				raise ValueError()
+			return device
+		except ValueError:
+			print("Sorry, that's not a valid device or partition. Try again.")
 
-    while True:
-        try:
-            device = input(
-                "Enter letter [number] of device/partition to wipe,"
-                "\ne.g. to wipe '/dev/sdb1' enter 'b1': ")
-
-            if not re.match("^[a-z][0-9]?$", device):
-                raise ValueError()
-            return device
-
-        except ValueError:
-            print("Sorry, that's not a valid device or partition. Try again.")
-
+# Append user-defined device/partition to /dev/sd
 def append_device_to_wipe():
-    """Append user-defined device/partition to /dev/sd.
-    """
+	letter = define_device_to_wipe()
+	return '/dev/sd' + letter
 
-    letter = define_device_to_wipe()
-
-    return '/dev/sd' + letter
-
+# Prompt user for number of wipes to perform
 def number_of_wipes():
-    """Prompt user for number of wipes to perform.
-    """
+	while True:
+		try:
+			wipes = int(input("How many times do you want to wipe the device or partition?: "))
+			if wipes <= 0:
+				raise ValueError()
+			return wipes
+		except ValueError:
+			print("Sorry, that's not a valid number. Try again: ")
 
-    while True:
-        try:
-            wipes = int(input("How many times do you want to wipe the device or partition?: "))
-
-            if wipes <= 0:
-                raise ValueError()
-            return wipes
-
-        except ValueError:
-            print("Sorry, that's not a valid number. Try again: ")
-
+# Prompt user to confirm disk erasure.
 def confirm_wipe():
-    """Prompt user to confirm disk erasure.
-    """
+	print("WARNING!!! WRITING CHANGES TO DISK WILL RESULT IN IRRECOVERABLE DATA LOSS.")
+	while True:
+		try:
+			reply = input("Do you want to proceed? (Yes/No): ").lower().strip()
+			if reply == 'yes':
+				return True
+			if reply == 'no':
+				print("Exiting pyWype.")
+				sys.exit()
+		except ValueError:
+			print("Sorry, that's not a valid entry. Try again: ")
 
-    print("WARNING!!! WRITING CHANGES TO DISK WILL RESULT IN IRRECOVERABLE DATA LOSS.")
-
-    while True:
-        try:
-            reply = input("Do you want to proceed? (Yes/No): ").lower().strip()
-
-            if reply == 'yes':
-                return True
-            if reply == 'no':
-                print("Exiting pyWype.")
-                sys.exit()
-
-        except ValueError:
-            print("Sorry, that's not a valid entry. Try again: ")
-
+# Write zeros to device/partition.
 def write_zeros_to_device():
-    """Write zeros to device/partition.
-    """
+	append = append_device_to_wipe()
+	num = number_of_wipes()
+	confirm_wipe()
+	for i in range(num):
+		print("Processing pass count {} of {} ... ".format(i + 1, num))
+		os.system(('dd if=/dev/zero |pv --progress --time --rate --bytes|'
+					'dd of={} bs=1024'.format(append)))
 
-    append = append_device_to_wipe()
-    num = number_of_wipes()
-    confirm_wipe()
-
-    for i in range(num):
-        print("Processing pass count {} of {} ... ".format(i + 1, num))
-        os.system(('dd if=/dev/zero |pv --progress --time --rate --bytes|'
-                   'dd of={} bs=1024'.format(append)))
-
+#Write random zeros and ones to device/partition.
 def write_random_to_device():
-    """Write random zeros and ones to device/partition.
-    """
+	append = append_device_to_wipe()
+	num = number_of_wipes()
+	confirm_wipe()
 
-    append = append_device_to_wipe()
-    num = number_of_wipes()
-    confirm_wipe()
-
-    for i in range(num):
-        print("Processing pass count {} of {} ... ".format(i + 1, num))
-        os.system(('dd if=/dev/urandom |pv --progress --time --rate --bytes|'
-                   'dd of={} bs=1024'.format(append)))
-
-def menu():
-    """Menu prompt for use to select program option.
-    """
-
-    list_mounted_devices()
-
-    while True:
-        try:
-            print(30 * "-", "MENU", 30 * "-")
-            print("1. Overwrite device or partition with 0's \n(faster, less secure).")
-            print("2. Overwrite device or partition with random 0\'s & 1\'s"
-                  "\n(slower, more secure).")
-            print("3. Quit.")
-
-            choice = input("Select an option (1, 2 or 3): ")
-
-            if choice not in ('1', '2', '3'):
-                raise ValueError()
-            return choice
-
-        except ValueError:
-            print("Sorry, that's not a valid number. Try again: ")
+	for i in range(num):
+		print("Processing pass count {} of {} ... ".format(i + 1, num))
+		os.system(('dd if=/dev/urandom |pv --progress --time --rate --bytes|'
+					'dd of={} bs=1024'.format(append)))
 
 def interactive_mode():
-    """Display menu-driven options and run function based on selection.
-    """
-
-    while True:
-        choice = menu()
-
-        if choice == '3':
-            sys.exit()
-        elif choice == '1':
-            write_zeros_to_device()
-        elif choice == '2':
-            write_random_to_device()
+	while True:
+		print(30 * "-", "MENU", 30 * "-")
+		print("1. Overwrite device or partition with 0's \n(faster, less secure).")
+		print("2. Overwrite device or partition with random 0\'s & 1\'s"
+				"\n(slower, more secure).")
+		print("3. Quit.")
+		try:
+			choice = int(input("Select an option (1, 2 or 3): "))
+			if choice == 3:
+				sys.exit()
+			elif choice == 1:
+				write_zeros_to_device()
+			elif choice == 2:
+				write_random_to_device()
+			if (choice != 1 or choice != 2 or choice != 3):
+				raise ValueError()
+			return choice
+		except ValueError:
+			print("Sorry, that's not a valid number. Try again: ")
 
 # The function to perform the formating process in Linux
 def linux_format():
-	try:
-		input = raw_input
-	except NameError:
-		pass
-	print(28 * '-', " pyWype ", 28 * '-')
-	print("PYTHON DISK & PARTITION WIPING UTILITY FOR GNU/LINUX."
-		"\nTHIS UTILITY WILL IRRECOVERABLY WIPE DATA FROM DRIVE.\nPROCEED WITH CAUTION.")
-	is_linux()
-	root_user_check()
-	interactive_mode()
+
+	if (sys.platform.startswith(flag_linux)):
+		#Check if current UID is 0.
+		if (os.getuid() == 0):
+			print ("\n\n")
+			print ("-------------------Format HardDrives for GNU/LINUX-------------------------------")
+			print ("------The Current Operating System should be GNU/LINUX Only.")
+			print ("	  The Process will Delete Everything Permanetly on the Target Drive.")
+			print ("	  The User Should Pay Attention to each Step.")
+			print ("	  Press R(r) to go back to the previous menu.")
+			list_mounted_devices()
+			interactive_mode()
+		else:
+			print("This program requires ROOT privileges. Exiting.")
+	else:
+		print("This program was designed for GNU/Linux. Exiting.")
+		sys.exit()	
 # Display the main menu
 if __name__ == '__main__':
 	tasks = {
